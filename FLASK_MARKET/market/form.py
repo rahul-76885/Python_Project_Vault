@@ -1,6 +1,9 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField
-from wtforms.validators import Length, Email, DataRequired, EqualTo
+from wtforms.validators import Length, EqualTo, Email, DataRequired, ValidationError
+from market.model import User
+
+
 # -------------------------------------------------
 # REGISTER FORM
 # -------------------------------------------------
@@ -13,6 +16,49 @@ from wtforms.validators import Length, Email, DataRequired, EqualTo
 # - Easy integration with HTML templates
 # -------------------------------------------------
 class RegisterForm(FlaskForm):
+    
+    # -------------------------------------------------
+    # Custom validation for the "username" field
+    # -------------------------------------------------
+    # Flask-WTF automatically calls this method when:
+    # - The form is submitted
+    # - The field name is "username"
+    #
+    # Naming rule (VERY IMPORTANT):
+    # validate_<fieldname>(self, field)
+    # -------------------------------------------------
+    def validate_username(self, username_to_check):
+        
+        # Query the database to check
+        # if a user with the same username already exists
+        user = User.query.filter_by(name=username_to_check.data).first()
+
+        # If a user is found, raise a validation error
+        # This stops form submission and adds an error message
+        if user:
+            raise ValidationError(
+                'Username already exists! Please try a different username'
+            )
+
+    # -------------------------------------------------
+    # Custom validation for the "email_address" field
+    # -------------------------------------------------
+    # This method is automatically triggered because
+    # the field name is "email_address"
+    # -------------------------------------------------
+    def validate_email_address(self, email_address_to_check):
+        
+        # Query the database to check
+        # if the email address is already registered
+        email_address = User.query.filter_by(
+            email=email_address_to_check.data
+        ).first()
+
+        # If email already exists, raise a validation error
+        if email_address:
+            raise ValidationError(
+                'Email Address already exists! Please try a different email address'
+            )
 
     # Username input field
     # StringField creates a text input (<input type="text">)

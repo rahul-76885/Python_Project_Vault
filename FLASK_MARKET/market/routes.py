@@ -1,5 +1,5 @@
 from market import app,db
-from flask import render_template ,redirect , url_for
+from flask import render_template ,redirect , url_for,flash
 from market.model import Item,User
 from market.form import RegisterForm
 
@@ -50,26 +50,48 @@ def market_page():
 # Currently, this route only handles GET requests.
 # Form submission (POST) will be added later.
 # -------------------------------------------------
-@app.route('/register' , methods=['GET','POST'])
+@app.route('/register', methods=['GET', 'POST'])
 def register_page():
-   
     # Create an instance of the registration form
     form = RegisterForm()
-     
-    # here it is set of instruction used when i click on submit btn its stores data written in from in my user database
+
+    # -------------------------------------------------
+    # This block runs ONLY when:
+    # - Request method is POST
+    # - All form validations pass (NO errors)
+    # -------------------------------------------------
     if form.validate_on_submit():
-        user_to_create = User(name=form.username.data,
-                              email=form.email_address.data,
-                              password_hash=form.password1.data)
+        
+        # Create a new User object using form data
+        user_to_create = User(
+            name=form.username.data,
+            email=form.email_address.data,
+            password_hash=form.password1.data  # hashing usually handled in model
+        )
 
+        # Add the user to the database session
         db.session.add(user_to_create)
-        db.session.commit()
-        if form.errors != {}: #If there are not errors from the validations
-          for err_msg in form.errors.values():
-            print(f'There was an error with creating a user: {err_msg}')
 
-        # Redirect to the market page after successful registration
+        # Commit changes to permanently save user in DB
+        db.session.commit()
+
+        # Success message shown on UI
+        flash('Account created successfully!', category='success')
+
+        # Redirect user to market page after successful registration
         return redirect(url_for('market_page'))
 
-    # Render the registration page and pass the form
+    # -------------------------------------------------
+    # This block runs when:
+    # - Form is submitted BUT validation FAILS
+    # - Errors exist in form fields
+    # -------------------------------------------------
+    if form.errors:
+        # form.errors is a dictionary:
+        # { field_name: [error1, error2, ...] }
+        for field_errors in form.errors.values():
+            for error in field_errors:
+                flash(error, category='danger')
+
+    # Render registration page and send form object to template
     return render_template('register.html', form=form)
