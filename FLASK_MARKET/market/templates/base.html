@@ -1,62 +1,150 @@
 <!doctype html>
 <html lang="en">
    <head>
-      <!-- Required meta tags -->
+      <!-- 
+      Required meta tags
+      These ensure:
+      - Correct character encoding
+      - Responsive behavior on mobile devices
+      -->
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-      <!-- Bootstrap CSS -->
-      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css" integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">
+
+      <!-- 
+      Bootstrap CSS (v4.5.3)
+      Provides:
+      - Grid system
+      - Pre-built components (navbar, buttons, forms)
+      - Utility classes (margin, padding, colors)
+      -->
+      <link rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css"
+            integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2"
+            crossorigin="anonymous">
+
+      <!-- 
+      Title block
+      This allows child templates (home, register, market)
+      to inject their own page title dynamically
+      -->
       <title>
           {% block title %}
-
           {% endblock %}
       </title>
    </head>
+
    <body>
+    <!-- 
+    NAVBAR SECTION
+    This navbar appears on ALL pages
+    because other templates extend base.html
+    -->
     <nav class="navbar navbar-expand-md navbar-dark bg-dark">
+
+      <!-- Brand / App name -->
       <a class="navbar-brand" href="#">Flask Market</a>
-      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav">
+
+      <!-- 
+      Navbar toggle button (for mobile view)
+      Appears when screen width is small
+      -->
+      <button class="navbar-toggler"
+              type="button"
+              data-toggle="collapse"
+              data-target="#navbarNav">
         <span class="navbar-toggler-icon"></span>
       </button>
+
+      <!-- 
+      Collapsible navbar content
+      -->
       <div class="collapse navbar-collapse" id="navbarNav">
+
+        <!-- LEFT side navbar links -->
         <ul class="navbar-nav mr-auto">
+
+            <!-- Home link -->
             <li class="nav-item active">
-                <a class="nav-link" href="{{url_for('home_page')}}">Home <span class="sr-only">(current)</span></a>
+                <a class="nav-link" href="{{ url_for('home_page') }}">
+                    Home <span class="sr-only">(current)</span>
+                </a>
             </li>
+
+            <!-- Market link -->
             <li class="nav-item">
-                <a class="nav-link" href="{{url_for('market_page')}}">Market</a>
+                <a class="nav-link" href="{{ url_for('market_page') }}">
+                    Market
+                </a>
             </li>
         </ul>
+
+        <!-- RIGHT side navbar links -->
         <ul class="navbar-nav">
+
+            <!-- Login link (to be connected later) -->
             <li class="nav-item">
-                <a class="nav-link" href="#">Login</a>
+                <a class="nav-link" href="#">
+                    Login
+                </a>
             </li>
+
+            <!-- Register link -->
             <li class="nav-item">
-                <a class="nav-link" href="#">Register</a>
+                <a class="nav-link" href="{{ url_for('register_page') }}">
+                    Register
+                </a>
             </li>
         </ul>
       </div>
     </nav>
-      {% block content %}  
 
-      <!-- used for adding variable , content is var name  -->
-
+    <!-- 
+    CONTENT BLOCK
+    Child templates inject their main content here
+    Example:
+    - home.html
+    - register.html
+    - market.html
+    -->
+      {% block content %}
+      <!-- Page-specific content goes here -->
       {% endblock %}
-      <!-- Future Content here -->
 
+      <!-- 
+      Optional JavaScript files
+      Required for Bootstrap components like:
+      - Navbar toggle
+      - Dropdowns
+      - Modals
+      -->
 
+      <!-- Font Awesome (icons) -->
+      <script src="https://kit.fontawesome.com/a076d05399.js"></script>
 
-      <!-- Optional JavaScript -->
-      <!-- jQuery first, then Popper.js, then Bootstrap JS -->
-      <script src='https://kit.fontawesome.com/a076d05399.js'></script>
-      <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
-      <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
-      <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
+      <!-- jQuery (required by Bootstrap 4) -->
+      <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+              integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+              crossorigin="anonymous"></script>
+
+      <!-- Popper.js (used for tooltips & popovers) -->
+      <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
+              integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN"
+              crossorigin="anonymous"></script>
+
+      <!-- Bootstrap JS -->
+      <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"
+              integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV"
+              crossorigin="anonymous"></script>
    </body>
+
+   <!-- 
+   Global styling
+   Applied to ALL pages extending base.html
+   -->
    <style>
       body {
-      background-color: #212121;
-      color: white
+        background-color: #212121;
+        color: white;
       }
    </style>
 </html>
