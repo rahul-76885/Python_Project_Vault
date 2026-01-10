@@ -1,6 +1,4 @@
-from market import db
-from werkzeug.security import generate_password_hash, check_password_hash
-
+from market import db, bcrypt
 # =========================
 # USER MODEL
 # =========================
@@ -29,8 +27,17 @@ class User(db.Model):
 
     # Converts plain password into a secure hash
     # This method is called while creating or updating a user
-    def set_password(self, password):
-        self.password_hash = generate_password_hash(password)
+    @property
+    def password(self):
+        return self.password_hash
+    
+    @password.setter
+    def password(self,plain_password):
+        self.password_hash=bcrypt.generate_password_hash(plain_password).decode('utf-8')
+
+
+    
+
 
 
 # =========================
@@ -60,3 +67,6 @@ class Item(db.Model):
     # String representation (useful for debugging & shell)
     def __repr__(self):
         return f'Item {self.name}'
+
+
+            

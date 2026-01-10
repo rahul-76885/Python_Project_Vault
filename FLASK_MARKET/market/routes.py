@@ -1,7 +1,7 @@
 from market import app,db
 from flask import render_template ,redirect , url_for,flash
 from market.model import Item,User
-from market.form import RegisterForm
+from market.form import RegisterForm,LoginForm
 
 
 # -------------------------------------------------
@@ -66,7 +66,7 @@ def register_page():
         user_to_create = User(
             name=form.username.data,
             email=form.email_address.data,
-            password_hash=form.password1.data  # hashing usually handled in model
+            password=form.password1.data  # hashing usually handled in model
         )
 
         # Add the user to the database session
@@ -95,3 +95,9 @@ def register_page():
 
     # Render registration page and send form object to template
     return render_template('register.html', form=form)
+
+@app.route("/login",methods=['GET','POST'])
+def Login_Page():
+    form=LoginForm()
+    return render_template('login.html',form=form)
+    

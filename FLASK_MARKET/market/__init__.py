@@ -1,6 +1,6 @@
 from flask import Flask, render_template
 from flask_sqlalchemy import SQLAlchemy
-
+from flask_bcrypt import Bcrypt
 # -------------------------------------------------
 # Create the Flask application instance
 # __name__ tells Flask where this file is located,
@@ -10,7 +10,7 @@ from flask_sqlalchemy import SQLAlchemy
 app = Flask(__name__)
 
 # -------------------------------------------------
-# DATABASE CONFIGURATION
+# Database Configration using SQLAlchemy
 # -------------------------------------------------
 # SQLALCHEMY_DATABASE_URI tells SQLAlchemy:
 # 1. Which database engine to use (sqlite)
@@ -39,7 +39,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///market.db'
 # - Kept secret
 # - Stored in environment variables in production
 # -------------------------------------------------
-app.config['SECRET_KEY'] = '78fa206b019df59a56e8017d'
+app.config['SECRET_KEY'] = '78fa206b019df59a56e8017d' #os.urandom(8).hex()
+
+# Intializing the bcrypt 
+bcrypt=Bcrypt(app)
 
 # -------------------------------------------------
 # Initialize SQLAlchemy

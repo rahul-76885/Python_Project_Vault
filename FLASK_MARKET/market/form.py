@@ -81,3 +81,8 @@ class RegisterForm(FlaskForm):
     # Submit button
     # Triggers form submission when clicked
     submit = SubmitField(label='Create Account')
+
+class LoginForm(FlaskForm):
+    username = StringField(label='User Name:', validators=[DataRequired()])
+    password = PasswordField(label='Password:', validators=[DataRequired()])
+    submit = SubmitField(label='Sign in')
