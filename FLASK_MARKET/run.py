@@ -1,4 +1,4 @@
-from market import app, db
+from market import app
 
 # -------------------------------------------------
 # Entry point of the Flask application
