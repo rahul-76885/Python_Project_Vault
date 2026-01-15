@@ -53,9 +53,7 @@ class RegisterForm(FlaskForm):
         # Common confusion:
         # ❌ "Is this slow? Does it run every time?"
         # ✅ It runs ONLY on form submission, not on page load.
-        user = User.query.filter_by(
-            name=username_to_check.data
-        ).first()
+        user = User.query.filter_by(name=username_to_check.data).first()
 
         # Raising ValidationError:
         # - Stops validation chain for this field
