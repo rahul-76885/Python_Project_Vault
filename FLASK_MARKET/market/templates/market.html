@@ -23,7 +23,7 @@ Market Page
          <tbody>
             <!-- Your rows inside the table HERE: -->
             {% for item in items %}
-            {% include 'includes/items_modals.html' %}
+            {% include 'includes/items_modals.html' %} <!--we import modal for each item -->
             <tr>
                <td>{{ item.id }}</td>
                <td>{{ item.name }}</td>

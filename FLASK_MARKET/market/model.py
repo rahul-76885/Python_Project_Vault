@@ -1,108 +1,110 @@
 from market import db, bcrypt, login_manager
-from flask_login import UserMixin
+from flask_login import UserMixin, current_user
+
+
+# =================================================
+# WHAT DOES `from flask_login import current_user` MEAN?
+# =================================================
+# INTERVIEW QUESTION:
+# Q: When we import `current_user`, what do we actually get?
+#
+# ANSWER:
+# `current_user` is NOT a User object.
+# It is a PROXY (lazy object).
+#
+# Meaning:
+# - It does NOT store a user permanently
+# - It dynamically resolves to:
+#   → the User for THIS request
+#
+# On every request:
+# current_user → load_user(user_id) → User object
+#
+# If user is not logged in:
+# current_user → AnonymousUser
+#
+# IMPORTANT:
+# You NEVER manually pass user.id.
+# Flask-Login reconstructs the user automatically.
+# =================================================
 
 
 # =================================================
 # FLASK-LOGIN USER LOADER
 # =================================================
-# Core idea:
-# Flask-Login NEVER stores the full User object in the session.
-# It stores ONLY a STRING user_id.
+# INTERVIEW QUESTION:
+# Q: How does Flask-Login know which user is logged in?
 #
-# Common confusion:
-# ❌ "Is the User object stored in cookies?"
-# ✅ No. Only user_id is stored; User object is reconstructed per request.
-#
-# Lifecycle:
-# - Runs ON EVERY REQUEST where session contains a user_id
-# - Converts user_id → User ORM object
-#
-# IMPORTANT:
-# This function MUST:
-# - Return a User object
-# - Or return None (treated as anonymous user)
+# ANSWER:
+# - Flask-Login stores ONLY user_id in the session
+# - On every request it calls this function
+# - This function rebuilds the User object
 # =================================================
 @login_manager.user_loader
 def load_user(user_id):
-    # user_id arrives as STRING because sessions store JSON-serializable data
-    # Conversion to int is REQUIRED for primary key lookup
-    #
-    # User.query.get():
-    # - Uses primary key
-    # - Returns None if not found
-    # - Does NOT raise exception
+    # user_id comes as STRING from session cookie
+    # Convert to int for DB primary key lookup
     return User.query.get(int(user_id))
 
 
+
 # =================================================
-# USER MODEL
+# USER MODEL (AUTH + DOMAIN LOGIC)
 # =================================================
 class User(db.Model, UserMixin):
     """
     Represents a registered user.
 
-    Architectural role:
-    - Owns authentication rules
-    - Owns password logic
-    - Owns relationships
+    INTERVIEW QUESTION:
+    Q: Why inherit UserMixin?
+    A: It provides is_authenticated, get_id(), etc.,
+       which Flask-Login requires to function.
 
-    Routes SHOULD NOT:
-    - Hash passwords
-    - Compare passwords
-    - Know storage details
+    DESIGN PRINCIPLE:
+    - Routes orchestrate
+    - Models enforce business & security rules
     """
 
     # -------------------------------------------------
     # PRIMARY KEY
     # -------------------------------------------------
-    # Acts as:
-    # - Database identity
-    # - Authentication identity
-    # - Foreign key reference target
+    # INTERVIEW QUESTION:
+    # Q: Why is id important beyond DB identity?
+    # A: It is also used for authentication and relationships.
     id = db.Column(db.Integer(), primary_key=True)
 
     # -------------------------------------------------
     # USERNAME
     # -------------------------------------------------
     # unique=True:
-    # ✔ Prevents duplicates at DB level
-    # ✘ Validation alone is NOT sufficient (race conditions)
+    # ✔ DB-level protection
+    # ✘ Forms alone are not enough (race conditions)
     name = db.Column(db.String(length=30), nullable=False, unique=True)
 
     # -------------------------------------------------
     # EMAIL
     # -------------------------------------------------
-    # Stored as plain text because:
-    # - Needed for communication
-    # - Not secret like passwords
+    # Stored as plaintext because it is NOT secret.
     email = db.Column(db.String(length=50), nullable=False, unique=True)
 
     # -------------------------------------------------
     # PASSWORD HASH
     # -------------------------------------------------
-    # Stores ONLY hash
-    #
-    # NEVER:
-    # - Store raw password
-    # - Return raw password
+    # INTERVIEW QUESTION:
+    # Q: Why never store plaintext passwords?
+    # A: DB leaks would expose user credentials.
     password_hash = db.Column(db.String(length=60), nullable=False)
 
     # -------------------------------------------------
     # BUDGET
     # -------------------------------------------------
-    # Default assigned at DB level
-    # Ensures consistency even if object is created outside routes
+    # Default enforced at DB level for consistency.
     budget = db.Column(db.Integer(), nullable=False, default=1000)
 
     # -------------------------------------------------
     # RELATIONSHIP: USER → ITEMS
     # -------------------------------------------------
-    # lazy=True means:
-    # - Items are fetched only when accessed
-    #
-    # Common confusion:
-    # ❌ "Is user.items always loaded?"
-    # ✅ No. It triggers a query when accessed.
+    # lazy=True → query executed ONLY when accessed
     items = db.relationship('Item', backref='owned_user', lazy=True)
 
     # =================================================
@@ -110,10 +112,9 @@ class User(db.Model, UserMixin):
     # =================================================
     @property
     def password(self):
-        # Returning hash prevents accidental plaintext exposure
-        #
-        # Design choice:
-        # ❌ Do not allow reading real password
+        # INTERVIEW QUESTION:
+        # Q: Why not return the real password?
+        # A: Passwords should NEVER be readable.
         return self.password_hash
 
     # =================================================
@@ -121,12 +122,10 @@ class User(db.Model, UserMixin):
     # =================================================
     @password.setter
     def password(self, plain_password):
-        # Hashing happens HERE to:
-        # ✔ Centralize security logic
-        # ✔ Make routes ignorant of hashing algorithm
-        #
-        # If algorithm changes later (bcrypt → argon2),
-        # routes remain untouched.
+        # WHY HASHING IS HERE:
+        # - Centralizes security logic
+        # - Keeps routes clean
+        # - Allows algorithm change without touching routes
         self.password_hash = bcrypt.generate_password_hash(
             plain_password
         ).decode('utf-8')
@@ -136,52 +135,54 @@ class User(db.Model, UserMixin):
     # =================================================
     @property
     def prettier_budget(self):
-        # Computed property:
-        # - Exists only in Python
-        # - NOT stored in database
-        #
-        # Common confusion:
-        # ❌ "Is this column in DB?"
-        # ✅ No. It is derived at runtime.
+        # INTERVIEW QUESTION:
+        # Q: Is this a database column?
+        # A: No. It is computed at runtime.
         if len(str(self.budget)) >= 4:
             return f'{str(self.budget)[:-3]},{str(self.budget)[-3:]}$'
-        else:
-            return f"{self.budget}$"
+        return f"{self.budget}$"
 
     # =================================================
     # PASSWORD VERIFICATION
     # =================================================
     def check_password_correction(self, attempted_password):
-        # bcrypt.check_password_hash():
-        # - Handles salting internally
-        # - Safe against timing attacks
-        #
-        # try/except rationale:
-        # If DB hash is corrupted or invalid,
-        # treat as failed login instead of crashing server.
+        # INTERVIEW QUESTION:
+        # Q: Why compare hashes instead of passwords?
+        # A: Passwords are never stored or compared directly.
         try:
             return bcrypt.check_password_hash(
                 self.password_hash,
                 attempted_password
             )
         except ValueError:
+            # Defensive programming: corrupted hash
             return False
+
+    # =================================================
+    # AUTHORIZATION LOGIC
+    # =================================================
+    def can_purchase(self, item_obj):
+        # INTERVIEW QUESTION:
+        # Q: Why is this method on User?
+        # A: Budget belongs to User, so permission logic belongs here.
+        return self.budget >= item_obj.price
 
 
 # =================================================
-# ITEM MODEL
+# ITEM MODEL (OWNERSHIP + TRANSACTION LOGIC)
 # =================================================
 class Item(db.Model):
     """
     Represents a market item.
 
-    Data ownership:
-    - Item knows WHO owns it
-    - User knows WHICH items they own
+    DESIGN PRINCIPLE:
+    - Item owns ownership changes
+    - User owns permission logic
     """
 
     id = db.Column(db.Integer(), primary_key=True)
 
+    # Human-readable, NOT identity
     name = db.Column(db.String(length=30), nullable=False, unique=True)
 
     price = db.Column(db.Integer(), nullable=False)
@@ -193,18 +194,22 @@ class Item(db.Model):
     # -------------------------------------------------
     # FOREIGN KEY
     # -------------------------------------------------
-    # owner stores ONLY user.id
-    #
-    # Relationship resolution:
-    # Item.owner        → integer
-    # Item.owned_user   → User object (via backref)
+    # Stores ONLY user.id (never full object)
     owner = db.Column(db.Integer(), db.ForeignKey('user.id'))
 
     def __repr__(self):
-        # Developer-facing representation
-        # Used in debugging, logs, shell
         return f'Item {self.name}'
 
+    def buy(self, user):
+        # INTERVIEW QUESTION:
+        # Q: Why is buy() inside Item and not User?
+        # A: Ownership changes on Item, so behavior belongs here.
+        self.owner = user.id
+        user.budget -= self.price
+
+        # NOTE:
+        # In production, commit should be in route/service layer
+        db.session.commit()
 
 # =================================================
 # AUTHENTICATION FLOW — RESEARCH SUMMARY

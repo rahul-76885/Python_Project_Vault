@@ -1,19 +1,8 @@
 <!doctype html>
 <html lang="en">
    <head>
-      <!-- =================================================
-           META CONFIGURATION (BROWSER + DEVICE CONTROL)
-           =================================================
-           charset:
-           - Ensures correct character encoding
-
-           viewport:
-           - Required for responsive design
-           - shrink-to-fit prevents overflow on small screens
-      ================================================= -->
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-
       <!-- =================================================
            BOOTSTRAP CSS (PRESENTATION LAYER)
            =================================================
@@ -29,18 +18,6 @@
             href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css"
             integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2"
             crossorigin="anonymous">
-
-      <!-- =================================================
-           TITLE BLOCK (TEMPLATE INHERITANCE)
-           =================================================
-           allows child templates to:
-           - Override page title
-           - Reuse common layout
-
-           Common confusion:
-           ❌ "Does this run Python?"
-           ✅ No. Jinja renders text before response is sent.
-      ================================================= -->
       <!-- =================================================
            TITLE BLOCK (TEMPLATE INHERITANCE)
            =================================================
@@ -121,7 +98,7 @@
                          Attribute name must match model
                          (User.name vs username mismatch causes bugs) -->
                     <a class="nav-link">
-                        Welcome, {{ current_user.username }}
+                        Welcome, {{ current_user.name }}
                     </a>
                 </li>
 

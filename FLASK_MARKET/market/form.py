@@ -11,69 +11,69 @@ from market.model import User
 
 
 # =================================================
-# REGISTER FORM
+# REGISTER FORM (USER INPUT CONTRACT)
 # =================================================
-# Role of this class:
-# - Define INPUT STRUCTURE (fields)
-# - Define INPUT RULES (validators)
+# This class does NOT handle:
+# ❌ database writes
+# ❌ authentication
+# ❌ password hashing
 #
-# FlaskForm responsibilities:
-# ✔ CSRF protection (per request token)
-# ✔ Validation orchestration
-# ✔ Binding request data to Python objects
+# This class ONLY defines:
+# ✔ what inputs are expected
+# ✔ what rules those inputs must satisfy
 #
-# Common confusion:
-# ❌ "Does this class store form data?"
-# ✅ No. It only defines rules; instances hold data per request.
+# Interview insight:
+# Forms are the FIRST defensive layer against bad input,
+# but they are NOT the final authority (DB is).
 # =================================================
 class RegisterForm(FlaskForm):
 
     # =================================================
-    # FIELD-SPECIFIC CUSTOM VALIDATION (USERNAME)
+    # CUSTOM FIELD VALIDATION: USERNAME
     # =================================================
-    # Naming convention:
-    # validate_<fieldname>(self, field)
+    # validate_<fieldname> is discovered AUTOMATICALLY.
     #
-    # This is NOT magic:
-    # Flask-WTF uses reflection to find these methods
-    # and attaches them to the field's validation pipeline.
+    # How Flask-WTF finds this:
+    # - Uses Python reflection
+    # - Scans for methods named validate_<field>
     #
-    # Execution timing:
-    # - Runs ONLY during form.validate_on_submit()
-    # - Runs AFTER built-in validators (Length, DataRequired)
+    # Execution order (important):
+    # 1. Built-in validators (Length, DataRequired)
+    # 2. Custom validate_<field>()
     #
-    # Important distinction:
-    # - This is APPLICATION-LEVEL validation
-    # - Database uniqueness is still enforced separately
+    # Common confusion:
+    # ❌ "Does this run on GET?"
+    # ✅ No. Runs ONLY on POST + validate_on_submit().
+    #
+    # Interview question:
+    # Q: Why not rely only on DB unique constraint?
+    # A: DB handles race conditions, form handles UX.
     # =================================================
     def validate_username(self, username_to_check):
 
-        # Query database to check existence
+        # Query DB to check if username already exists
         #
-        # Common confusion:
-        # ❌ "Is this slow? Does it run every time?"
-        # ✅ It runs ONLY on form submission, not on page load.
+        # Important:
+        # This is a READ-only query, not a write.
         user = User.query.filter_by(name=username_to_check.data).first()
 
         # Raising ValidationError:
-        # - Stops validation chain for this field
-        # - Attaches error message to the field
-        #
-        # Route logic remains clean and unaware of this rule.
+        # - Stops validation chain
+        # - Attaches error to this field
+        # - Automatically exposed via form.errors in template
         if user:
             raise ValidationError(
                 'Username already exists! Please try a different username'
             )
 
     # =================================================
-    # FIELD-SPECIFIC CUSTOM VALIDATION (EMAIL)
+    # CUSTOM FIELD VALIDATION: EMAIL
     # =================================================
-    # Triggered automatically because field name matches
-    # validate_email_address(...)
+    # Triggered because field name == email_address
     #
-    # Separation of responsibility:
-    # - Form checks user intent
-    # - DB constraint handles race conditions
+    # Design principle:
+    # - Form validates intent (user input)
+    # - DB enforces truth (constraints)
     # =================================================
     def validate_email_address(self, email_address_to_check):
 
@@ -87,86 +87,87 @@ class RegisterForm(FlaskForm):
             )
 
     # =================================================
-    # FORM FIELDS (DECLARATIVE)
+    # FORM FIELD DEFINITIONS (DECLARATIVE)
     # =================================================
-    # These are CLASS ATTRIBUTES, not instance attributes.
+    # These are CLASS ATTRIBUTES.
     #
-    # Flask-WTF uses metaclasses to:
-    # - Collect fields
-    # - Bind them to form instances at runtime
+    # Flask-WTF metaclass:
+    # - Collects these fields
+    # - Creates per-request instances
+    #
+    # Common confusion:
+    # ❌ "Are these shared between users?"
+    # ✅ No. Each request gets a fresh form instance.
     # =================================================
 
-    # Username field
-    # Length validator:
-    # - Prevents too short / too long usernames early
-    # DataRequired:
-    # - Prevents empty submissions
-    #
-    # Validation order:
+    # USERNAME FIELD
+    # Validation chain:
     # Length → DataRequired → validate_username()
     username = StringField(
         label='User Name:',
         validators=[Length(min=2, max=30), DataRequired()]
     )
 
-    # Email field
-    # Email():
-    # - Validates format ONLY
-    # - Does NOT check domain existence
-    #
-    # Common confusion:
-    # ❌ "Email() checks if email exists?"
-    # ✅ No. It only checks syntax.
+    # EMAIL FIELD
+    # Email() checks SYNTAX only.
+    # It does NOT verify:
+    # ❌ domain existence
+    # ❌ inbox validity
     email_address = StringField(
         label='Email Address:',
         validators=[Email(), DataRequired()]
     )
 
-    # Password field
+    # PASSWORD FIELD
     # PasswordField:
-    # - Masks input
-    # - Does NOT hash passwords
+    # - Masks input in browser
+    # - Does NOT hash
     #
-    # Hashing happens in the model, not here.
+    # Interview trap:
+    # Q: Why not hash password here?
+    # A: Security logic belongs to the model.
     password1 = PasswordField(
         label='Password:',
         validators=[Length(min=6), DataRequired()]
     )
 
-    # Confirm password field
-    # EqualTo:
-    # - Compares raw input values
-    # - Does NOT compare hashed passwords
+    # CONFIRM PASSWORD FIELD
+    # EqualTo compares RAW INPUT values.
+    # Hash comparison happens later in model.
     password2 = PasswordField(
         label='Confirm Password:',
         validators=[EqualTo('password1'), DataRequired()]
     )
 
-    # Submit button
-    # Has no validation logic
+    # SUBMIT BUTTON
+    # SubmitField has no validation logic.
     submit = SubmitField(label='Create Account')
 
 
 # =================================================
-# LOGIN FORM
+# LOGIN FORM (AUTH SHAPE ONLY)
 # =================================================
-# Simpler form:
-# - No uniqueness checks
-# - Authentication happens in routes + models
+# Purpose:
+# - Capture credentials
+# - Validate presence
 #
-# Design choice:
-# ❌ Do NOT verify password here
-# ✔ Forms validate shape; models validate truth
+# DOES NOT:
+# ❌ authenticate
+# ❌ hash
+# ❌ access DB directly
+#
+# Interview insight:
+# Authentication truth belongs to:
+# - Model (password verification)
+# - Flask-Login (session handling)
 # =================================================
 class LoginForm(FlaskForm):
 
-    # Username input
     username = StringField(
         label='User Name:',
         validators=[DataRequired()]
     )
 
-    # Password input
     password = PasswordField(
         label='Password:',
         validators=[DataRequired()]
@@ -176,14 +177,42 @@ class LoginForm(FlaskForm):
 
 
 # =================================================
-# RESEARCH-LEVEL SUMMARY (MEMORIZE)
+# PURCHASE / SELL FORMS (ACTION TRIGGERS)
+# =================================================
+# These forms exist ONLY to:
+# - Trigger POST requests
+# - Provide CSRF protection
+#
+# They intentionally have NO fields.
+#
+# Common confusion:
+# ❌ "Why use a form if no input?"
+# ✅ CSRF protection + semantic POST intent.
+# =================================================
+class PurchaseItemForm(FlaskForm):
+    submit = SubmitField(label='Purchase Item!')
+
+class SellItemForm(FlaskForm):
+    submit = SubmitField(label='Sell Item!')
+
+
+# =================================================
+# CORE FLASK-WTF CONCEPTS (INTERVIEW GOLD)
 # =================================================
 #
-# 1. Forms define RULES, not DATA
-# 2. Validation runs ONLY on submission
-# 3. Custom validators attach by naming convention
-# 4. Forms do NOT hash or authenticate
-# 5. DB constraints are final authority
+# 1. Forms define INPUT RULES, not BUSINESS RULES
+# 2. validate_on_submit() = POST + CSRF + validators
+# 3. Custom validators are discovered by naming convention
+# 4. Forms NEVER mutate database state
+# 5. Database constraints are the final safety net
 #
-# Mental model:
-# Browser → Form → Validators → Route → Model → DB
+# REQUEST FLOW:
+# Browser
+#   → Form (shape + rules)
+#   → Route (decision)
+#   → Model (truth + mutation)
+#   → Database
+#
+# One-line rule (MEMORIZE):
+# "Forms protect UX, models protect integrity."
+# =================================================

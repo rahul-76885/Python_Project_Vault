@@ -8,149 +8,196 @@ from flask_login import LoginManager
 # =================================================
 # app = Flask(__name__)
 #
-# VERY IMPORTANT MENTAL MODEL:
-# This line runs ONCE when the Python process starts,
-# NOT on every request.
+# CORE CONCEPT (VERY IMPORTANT):
+# This line executes ONCE when the Python process starts,
+# NOT per request and NOT per user.
 #
-# Common confusion:
-# ❌ "Is a new app created per user/request?"
-# ✅ No. One app instance serves ALL requests.
+# Common beginner confusion:
+# ❌ "Is a new app created for every request?"
+# ✅ No. One Flask app instance serves ALL requests.
 #
 # Why __name__?
 # Flask uses it to:
-# - Locate templates/
-# - Locate static/
-# - Resolve relative paths
+# - Resolve the root path of the application
+# - Locate templates/ and static/ folders
+# - Support relative imports and extensions
 #
-# Hardcoding a name breaks modularity and testing.
+# Interview question:
+# Q: What happens if you hardcode the app name?
+# A: Breaks modularity, testing, and reuse.
 # =================================================
 app = Flask(__name__)
 
 # =================================================
 # DATABASE CONFIGURATION (APPLICATION CONFIG)
 # =================================================
-# app.config is a global configuration registry
-# Extensions read from it at initialization time.
+# app.config is a GLOBAL configuration registry.
+# Extensions read values from it at initialization.
 #
 # SQLALCHEMY_DATABASE_URI explains:
-# - Which DB engine
-# - Where DB lives
+# - Which database engine to use
+# - Where the database is located
 #
 # sqlite:///market.db
-# ├─ sqlite  → engine
-# ├─ ///     → project root (relative path)
-# └─ market.db → file
+# ├─ sqlite  → database engine
+# ├─ ///     → project root directory
+# └─ market.db → database file
 #
 # Research note:
 # SQLite is file-based:
-# ✔ Simple
-# ✘ Not for high concurrency
+# ✔ Easy to use
+# ✘ Not suitable for high concurrency or production scale
 # =================================================
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///market.db'
 
 # =================================================
 # SECRET KEY (ROOT OF TRUST)
 # =================================================
-# SECRET_KEY is CRITICAL for security.
+# SECRET_KEY is one of the MOST CRITICAL settings.
 #
 # Used for:
 # - Signing session cookies
-# - CSRF tokens
+# - CSRF protection (Flask-WTF)
 # - Flash messages
 #
-# If SECRET_KEY changes:
-# ❗ ALL active sessions become invalid
+# Security guarantee:
+# If the SECRET_KEY changes:
+# ❗ ALL existing sessions become invalid
 #
-# Common beginner mistake:
-# ❌ Hardcoding SECRET_KEY in production
-# ✔ Use environment variables
+# Interview question:
+# Q: Why not hardcode this in production?
+# A: Source code leaks = session forgery risk.
 #
-# os.urandom example shown for learning only.
+# Best practice:
+# ✔ Use environment variables in production
 # =================================================
 app.config['SECRET_KEY'] = '78fa206b019df59a56e8017d'  # os.urandom(8).hex()
 
 # =================================================
-# EXTENSION INITIALIZATION (BCRYPT)
+# EXTENSION INITIALIZATION: BCRYPT
 # =================================================
-# Bcrypt(app):
-# - Registers hashing utilities with this app
-# - Stateless between requests
+# bcrypt = Bcrypt(app)
 #
-# Hashing does NOT happen here;
-# this only wires the extension.
+# What this does:
+# - Attaches password hashing utilities to the app
+# - Does NOT hash anything yet
+#
+# Important distinction:
+# ❌ Hashing does NOT happen here
+# ✅ Hashing happens later inside model methods
 #
 # Research insight:
-# In larger apps, extensions are often created
-# WITHOUT app and later initialized via init_app().
+# In large applications:
+# - Extensions are created WITHOUT app
+# - Initialized later via init_app(app)
 # =================================================
 bcrypt = Bcrypt(app)
 
 # =================================================
-# DATABASE INITIALIZATION (SQLALCHEMY)
+# DATABASE INITIALIZATION: SQLALCHEMY
 # =================================================
-# SQLAlchemy(app):
-# - Binds ORM to Flask app
-# - Reads DB config
-# - Manages sessions per request
+# db = SQLAlchemy(app)
+#
+# What this sets up:
+# - ORM layer
+# - Connection handling
+# - Session management
 #
 # Common confusion:
 # ❌ "Is db.session global?"
-# ✅ No. It is scoped to the current request context.
+# ✅ No. db.session is REQUEST-SCOPED.
 #
-# Models inherit from db.Model AFTER this.
+# Each request gets its own transaction context.
 # =================================================
 db = SQLAlchemy(app)
 
 # =================================================
-# LOGIN MANAGER (AUTHENTICATION LAYER)
+# LOGIN MANAGER (AUTHENTICATION SYSTEM)
 # =================================================
-# LoginManager handles:
+# LoginManager wires Flask-Login into the app.
+#
+# Responsibilities:
 # - Session-based authentication
-# - current_user injection
-# - Unauthorized redirects
+# - Injects current_user into every request
+# - Handles unauthorized access
 #
 # login_view:
 # - Endpoint name (NOT URL)
-# - Used when @login_required fails
+# - Used when @login_required blocks access
 #
 # login_message_category:
-# - Controls flash message styling
+# - Category used for flash messages
+#
+# Interview question:
+# Q: Where is login state stored?
+# A: In a signed session cookie (user_id only).
 # =================================================
 login_manager = LoginManager(app)
 login_manager.login_view = "login_page"
 login_manager.login_message_category = 'info'
 
 # =================================================
-# ROUTE IMPORT (ORDER MATTERS)
+# ROUTE IMPORT (ORDER IS CRITICAL)
 # =================================================
 # WHY import routes at the BOTTOM?
 #
-# routes.py needs:
+# routes.py requires:
 # - app
 # - db
-# - extensions
+# - login_manager
+# - bcrypt
 #
 # If imported earlier:
-# ❌ Circular import error
+# ❌ app/db not defined yet
+# ❌ circular import error
 #
-# Python execution order:
-# Top → Bottom → One time only
+# Python execution model:
+# - Files execute top → bottom
+# - Imports run immediately
 # =================================================
 from market import routes
 
 # =================================================
-# PACKAGE ROLE OF __init__.py
+# ROLE OF __init__.py (ARCHITECTURE)
 # =================================================
-# This file turns "market/" into a Python package.
+# This file turns "market/" into a Python PACKAGE.
 #
-# Architectural role:
-# - Central bootstrap point
-# - Holds shared objects (app, db, bcrypt)
+# Architectural responsibilities:
+# - Application bootstrap
+# - Extension wiring
+# - Central object registry
 #
-# Enables:
-# from market import app, db
+# Enables clean imports:
+# from market import app, db, bcrypt
 #
-# Research note:
-# This is an "application instance" pattern.
-# App Factory pattern is the scalable evolution.
+# Interview concept:
+# This is the "Application Instance Pattern".
+# The scalable evolution is the "Application Factory Pattern".
+# =================================================
+
+# =================================================
+# HIGH-LEVEL LOGIN FLOW (INTERVIEW GOLD)
+# =================================================
+#
+# 1. User submits login form
+# 2. Route validates credentials
+# 3. login_user(user) is called
+# 4. Flask-Login stores user.id in session
+# 5. Session cookie is signed using SECRET_KEY
+# 6. On every request:
+#    - Flask-Login reads session
+#    - Calls user_loader(user_id)
+#    - Rebuilds User object
+#    - Assigns it to current_user
+#
+# IMPORTANT:
+# - Browser NEVER stores full user data
+# - Only a signed identifier is stored
+# =================================================
+
+# =================================================
+# ONE-LINE CORE FLASK RULE (MEMORIZE)
+# =================================================
+# "Flask app and extensions are created once;
+# routes run per request; users are reconstructed per request."
 # =================================================

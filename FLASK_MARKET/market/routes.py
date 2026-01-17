@@ -1,34 +1,79 @@
-# Import the Flask application instance and database object
-# These are created once when the application starts (process-level),
-# NOT per request.
+# =================================================
+# APPLICATION & DATABASE IMPORTS
+# =================================================
+# app and db are created ONCE when Flask starts.
+# They are NOT recreated per request.
 #
 # Common confusion:
-# ❌ "Is app/db created again on every request?"
-# ✅ No. Flask loads modules once; requests reuse these objects.
+# ❌ "Is app/db created again for every user?"
+# ✅ No. Flask loads modules once; requests reuse them.
 #
-# Why import from package (__init__.py) instead of creating here?
+# Why import from package (__init__.py)?
 # ✔ Single source of truth
 # ✔ Prevents multiple app instances
-# ✔ Avoids subtle bugs in large applications
+# ✔ Required for large/scalable applications
 from market import app, db
 
-# Flask utilities used inside request-response cycle
-# These are stateless helpers; Flask injects request context automatically
-from flask import render_template, redirect, url_for, flash
+# =================================================
+# REQUEST–RESPONSE UTILITIES
+# =================================================
+# Flask automatically provides request context per request.
+# These utilities DO NOT store state.
+from flask import render_template, redirect, url_for, flash, request
 
-# ORM models
-# Models represent database tables, NOT individual rows
-# Each query returns NEW Python objects mapped to DB rows
+# =================================================
+# ORM MODELS
+# =================================================
+# Models represent TABLE STRUCTURE, not rows.
+# Each query creates NEW Python objects.
 from market.model import Item, User
 
-# WTForms classes
-# Forms are recreated per request to bind fresh request data
-# ❌ Never reuse form instances across requests
-from market.form import RegisterForm, LoginForm
+# =================================================
+# FORMS
+# =================================================
+# Forms are recreated PER REQUEST.
+#
+# Common confusion:
+# ❌ "Why not reuse form object?"
+# ✅ Forms bind request-specific data → reuse causes bugs.
+from market.form import (
+    RegisterForm,
+    LoginForm,
+    PurchaseItemForm,
+    SellItemForm
+)
 
-# Flask-Login session helpers
-# These work by storing ONLY user_id in session (not full user object)
-from flask_login import login_user, logout_user, login_required
+# =================================================
+# FLASK-LOGIN HELPERS
+# =================================================
+# Flask-Login stores ONLY user_id in session.
+# current_user is reconstructed EVERY request.
+from flask_login import (
+    login_user,
+    logout_user,
+    login_required,
+    current_user
+)
+
+# =================================================
+# IMPORTANT CONCEPT: current_user
+# =================================================
+# INTERVIEW QUESTION:
+# Q: What is current_user?
+#
+# ANSWER:
+# - It is NOT a variable
+# - It is a PROXY object
+#
+# On every request:
+# session["user_id"] → load_user(user_id) → User object
+#
+# If user is not logged in:
+# current_user → AnonymousUser
+#
+# You NEVER manually pass user_id.
+# Flask-Login does it automatically.
+# =================================================
 
 
 # =================================================
@@ -36,57 +81,141 @@ from flask_login import login_user, logout_user, login_required
 # =================================================
 # ROUTE ≠ FUNCTION CALL
 #
-# Route function is executed ONLY when:
-# - A request hits the given URL
+# This function runs ONLY when:
+# - URL matches
 # - HTTP method matches
 #
-# Flask does NOT run this code at startup.
+# Flask does NOT execute this at startup.
 # =================================================
 @app.route('/')
 @app.route('/home')
 def home_page():
-    # render_template():
+    # render_template:
     # - Loads HTML
     # - Injects context variables
-    # - Returns a Response object
+    # - Returns Response object
     #
-    # No database access here by design:
-    # ✔ Keeps landing page fast
-    # ✔ Avoids unnecessary DB load
+    # No DB access here:
+    # ✔ Fast
+    # ✔ Scalable
     return render_template('home.html')
 
 
 # =================================================
-# MARKET PAGE ROUTE (AUTHENTICATED)
+# MARKET PAGE (GET + POST)
 # =================================================
 # login_required:
-# - Executes BEFORE the route function
-# - Redirects to login view if user is anonymous
+# - Runs BEFORE route function
+# - Checks current_user.is_authenticated
+# - Redirects if user is anonymous
 #
-# Research insight:
-# This is implemented via decorators + request context,
-# NOT by wrapping code manually inside the function.
+# INTERVIEW QUESTION:
+# Q: How does login_required work?
+# A: Decorator + request context + current_user
 # =================================================
-@app.route('/market')
+@app.route('/market', methods=['GET', 'POST'])
 @login_required
 def market_page():
 
-    # ORM Query Explanation:
-    # Item.query.all()
-    # - Builds SQL
-    # - Executes it
-    # - Maps each row → new Item instance
-    #
-    # Common confusion:
-    # ❌ "Are these the same Item objects every time?"
-    # ✅ No. New Python objects are created per query.
-    items = Item.query.all()
+    # -------------------------------------------------
+    # FORM CREATION
+    # -------------------------------------------------
+    # New form per request
+    purchase_form = PurchaseItemForm()
 
-    # Data flow principle:
-    # Backend decides WHAT data exists
-    # Template decides HOW data looks
-    return render_template('market.html', items=items)
+    # =================================================
+    # POST REQUEST → BUY ITEM
+    # =================================================
+    if request.method == 'POST':
 
+        # -------------------------------------------------
+        # request.form.get()
+        # -------------------------------------------------
+        # INTERVIEW QUESTION:
+        # Q: Why use request instead of print()?
+        #
+        # ANSWER:
+        # - print() prints to server console
+        # - request.form reads HTTP payload sent by browser
+        #
+        # Browser → HTTP → Flask → request.form
+        purchased_item = request.form.get('purchased_item')
+
+        # -------------------------------------------------
+        # WHY QUERY AGAIN AFTER GETTING VALUE?
+        # -------------------------------------------------
+        # INTERVIEW QUESTION:
+        # Q: We already got purchased_item. Why query again?
+        #
+        # ANSWER:
+        # - purchased_item is STRING data (name)
+        # - We need FULL Item object to:
+        #   ✔ access price
+        #   ✔ change ownership
+        #   ✔ call model methods
+        #
+        # Forms send DATA, not OBJECTS.
+        p_item_object = Item.query.filter_by(
+            name=purchased_item
+        ).first()
+
+        if p_item_object:
+
+            # -------------------------------------------------
+            # AUTHORIZATION CHECK
+            # -------------------------------------------------
+            # WHY in model?
+            # - Budget belongs to User
+            # - Business rule belongs to model
+            if current_user.can_purchase(p_item_object):
+
+                # -------------------------------------------------
+                # MODEL METHOD CALL
+                # -------------------------------------------------
+                # INTERVIEW QUESTION:
+                # Q: How does route know buy() exists?
+                #
+                # ANSWER:
+                # - p_item_object is an Item instance
+                # - buy() is defined on Item class
+                # - Python resolves it via object method lookup
+                #
+                # Flask does NOTHING magical here.
+                p_item_object.buy(current_user)
+
+                flash(
+                    f"Congratulations! You purchased {p_item_object.name} "
+                    f"for {p_item_object.price}$",
+                    category='success'
+                )
+            else:
+                flash(
+                    f"Unfortunately, you don't have enough money "
+                    f"to purchase {p_item_object.name}!",
+                    category='danger'
+                )
+
+        # -------------------------------------------------
+        # POST-REDIRECT-GET (PRG PATTERN)
+        # -------------------------------------------------
+        # Prevents:
+        # - Duplicate purchases
+        # - Browser resubmission on refresh
+        return redirect(url_for('market_page'))
+
+    # =================================================
+    # GET REQUEST → SHOW ITEMS
+    # =================================================
+    if request.method == 'GET':
+
+        # Only show unowned items
+        items = Item.query.filter_by(owner=None)
+
+        return render_template(
+            'market.html',
+            items=items,
+            purchase_form=purchase_form
+        )
 
 # =================================================
 # REGISTER ROUTE
