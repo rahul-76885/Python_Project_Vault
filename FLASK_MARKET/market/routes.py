@@ -122,7 +122,7 @@ def market_page():
     # -------------------------------------------------
     # New form per request
     purchase_form = PurchaseItemForm()
-
+    selling_form = SellItemForm()
     # =================================================
     # POST REQUEST → BUY ITEM
     # =================================================
@@ -194,7 +194,15 @@ def market_page():
                     f"to purchase {p_item_object.name}!",
                     category='danger'
                 )
-
+        #Sell Item Logic
+        sold_item = request.form.get('sold_item')
+        s_item_object = Item.query.filter_by(name=sold_item).first()
+        if s_item_object:
+            if current_user.can_sell(s_item_object):
+                s_item_object.sell(current_user)
+                flash(f"Congratulations! You sold {s_item_object.name} back to market!", category='success')
+            else:
+                flash(f"Something went wrong with selling {s_item_object.name}", category='danger')
         # -------------------------------------------------
         # POST-REDIRECT-GET (PRG PATTERN)
         # -------------------------------------------------
@@ -206,16 +214,10 @@ def market_page():
     # =================================================
     # GET REQUEST → SHOW ITEMS
     # =================================================
-    if request.method == 'GET':
-
-        # Only show unowned items
+    if request.method == "GET":
         items = Item.query.filter_by(owner=None)
-
-        return render_template(
-            'market.html',
-            items=items,
-            purchase_form=purchase_form
-        )
+        owned_items = Item.query.filter_by(owner=current_user.id)
+        return render_template('market.html', items=items, purchase_form=purchase_form, owned_items=owned_items, selling_form=selling_form)
 
 # =================================================
 # REGISTER ROUTE

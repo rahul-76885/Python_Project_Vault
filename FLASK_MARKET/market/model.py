@@ -166,7 +166,8 @@ class User(db.Model, UserMixin):
         # Q: Why is this method on User?
         # A: Budget belongs to User, so permission logic belongs here.
         return self.budget >= item_obj.price
-
+    def can_sell(self, item_obj):
+        return item_obj in self.items
 
 # =================================================
 # ITEM MODEL (OWNERSHIP + TRANSACTION LOGIC)
@@ -210,7 +211,10 @@ class Item(db.Model):
         # NOTE:
         # In production, commit should be in route/service layer
         db.session.commit()
-
+    def sell(self, user):
+        self.owner = None
+        user.budget += self.price
+        db.session.commit()
 # =================================================
 # AUTHENTICATION FLOW — RESEARCH SUMMARY
 # =================================================
