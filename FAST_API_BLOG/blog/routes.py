@@ -6,28 +6,6 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from .schemas import POSTCREATE, POSTRESPONSE
 
 # ---------------------------------------------------------------------------
-# Sample data
-# ---------------------------------------------------------------------------
-
-posts = [
-    {
-        "id": 1,
-        "author": "Corey Schafer",
-        "title": "FastAPI is Awesome",
-        "content": "This framework is really easy to use and super fast.",
-        "date_posted": "April 20, 2025",
-    },
-    {
-        "id": 2,
-        "author": "Jane Doe",
-        "title": "Python is Great for Web Development",
-        "content": "Python is a great language for web development, and FastAPI makes it even better.",
-        "date_posted": "April 21, 2025",
-    },
-]
-
-
-# ---------------------------------------------------------------------------
 # HTML routes
 # ---------------------------------------------------------------------------
 #
@@ -72,7 +50,7 @@ def posts_page(request: Request):
 
 
 @app.get("/posts/{post_id}", include_in_schema=False, name="post")
-def post_page(request: Request, post_id: int):
+def post_page(request: Request, post_id: int ): # post_id:int is type notation like we expect int type and if we write post_id=int it means we are converting the data in int 
     for post in posts:
         if post.get("id") == post_id:
             return templates.TemplateResponse("post.html", {
@@ -120,8 +98,10 @@ def post_page(request: Request, post_id: int):
 # This endpoint handles HTTP GET requests to /api/posts
 # response_model tells FastAPI what structure the response should follow
 # list[POSTRESPONSE] means the API will return a list of PostResponse objects
-@app.get("/api/posts", response_model=list[POSTRESPONSE])
-async def get_posts():
+@app.get("/api/posts", 
+        response_model=list[POSTRESPONSE]
+        )
+def get_posts():
     # posts is a Python list containing dictionaries
     # FastAPI automatically converts Python list/dict → JSON response
     return posts
@@ -134,7 +114,7 @@ async def get_posts():
     "/api/posts",
     response_model=POSTRESPONSE,
     status_code=status.HTTP_201_CREATED
-)
+    )
 def post_create(post: POSTCREATE):
 
     # Generate a new id for the post

@@ -283,7 +283,7 @@ def register_page():
 
         # Redirect-after-POST pattern (PRG)
         # Prevents duplicate inserts on browser refresh
-        return redirect(url_for('market_page'))
+        return redirect(url_for('market_page')) 
 
     # Validation errors handling
     #
@@ -295,7 +295,11 @@ def register_page():
             for error in field_errors:
                 flash(error, category='danger')
 
-    return render_template('register.html', form=form)
+    return render_template('register.html', form=form) #here we can write raw code for html but it becomes messy and unstable like return '''
+#     <doctype>
+#     <Title>
+#         and all html code
+#     '''
 
 
 # =================================================

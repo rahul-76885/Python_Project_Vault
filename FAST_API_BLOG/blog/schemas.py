@@ -1,4 +1,5 @@
 from pydantic import BaseModel, Field, ConfigDict
+#it defines the format and datatype for api
 
 
 class POSTBASE(BaseModel):
